@@ -18,8 +18,16 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/ecommerce";
 
+// ✅ MongoDB Atlas connection
+const mongoURI = process.env.MONGODB_URI; // use Render env variable
+
+if (!mongoURI) {
+  console.error("❌ MONGODB_URI not defined in environment variables");
+  process.exit(1);
+}
+
+// CORS configuration
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -27,9 +35,11 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+// Body parser
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
+// Request logging
 app.use((req, res, next) => {
   console.log(
     JSON.stringify({
@@ -44,6 +54,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -54,6 +65,7 @@ app.get("/", (req, res) => {
   });
 });
 
+// Routes
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminDashboardRoutes);
 app.use("/api/auth", authRoutes);
@@ -62,14 +74,20 @@ app.use("/api/products", productsRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/rider", riderRoutes);
 
+// Error handlers
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// Start server
 const startServer = async () => {
   try {
-    await mongoose.connect(mongoURI);
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log("✅ MongoDB connected");
 
+    // Rider SLA job
     setInterval(() => {
       riderAutoTimeout();
     }, 30000);
